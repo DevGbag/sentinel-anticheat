@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Sentinel Admin</title>
+<link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="panel">
+      <header class="panel-header">
+        <div class="brand">
+          <span class="brand-dot"></span>
+          <span>Sentinel Admin</span>
+        </div>
+        <nav class="tabs">
+          <button class="tab-btn active" data-tab="players">Players</button>
+          <button class="tab-btn" data-tab="items">Item Generator</button>
+          <button class="tab-btn" data-tab="logs">Anticheat Log</button>
+        </nav>
+        <button class="close-btn" data-action="close" title="Close (ESC)">&times;</button>
+      </header>
+
+      <main class="panel-body">
+        <section class="tab-page active" data-page="players">
+          <div class="toolbar">
+            <input type="search" id="playerSearch" placeholder="Search players..." />
+            <button class="btn" data-action="refreshPlayers">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Name</th>
+                  <th>Ping</th>
+                  <th class="actions-col">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="playersBody"></tbody>
+            </table>
+          </div>
+        </section>
+
+        <section class="tab-page" data-page="items">
+          <div class="itemgen">
+            <div class="field">
+              <label for="itemTarget">Target</label>
+              <select id="itemTarget"></select>
+            </div>
+            <div class="field">
+              <label for="itemSearch">Item</label>
+              <input type="search" id="itemSearch" placeholder="Search items..." />
+            </div>
+            <div class="field">
+              <label for="itemSelect">&nbsp;</label>
+              <select id="itemSelect" size="8"></select>
+            </div>
+            <div class="field-row">
+              <div class="field">
+                <label for="itemCount">Quantity</label>
+                <input type="number" id="itemCount" value="1" min="1" />
+              </div>
+              <button class="btn primary" id="giveItemBtn">Give Item</button>
+            </div>
+          </div>
+        </section>
+
+        <section class="tab-page" data-page="logs">
+          <div class="toolbar">
+            <button class="btn" data-action="refreshLogs">Refresh</button>
+          </div>
+          <div class="log-list" id="logList"></div>
+        </section>
+      </main>
+    </div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

@@ -1,0 +1,47 @@
+fx_version 'cerulean'
+game 'gta5'
+lua54 'yes'
+
+name 'sentinel_ac'
+author 'DevGeorge'
+description 'Standalone anticheat + admin menu + item generator (framework-agnostic bridge)'
+version '1.0.0'
+
+shared_scripts {
+    'config/config.lua'
+}
+
+client_scripts {
+    'bridge/bridge_client.lua',
+    'bridge/frameworks/standalone_client.lua',
+    'bridge/frameworks/esx_client.lua',
+    'bridge/frameworks/qbcore_client.lua',
+    'bridge/frameworks/qbx_client.lua',
+    'bridge/frameworks/ox_client.lua',
+    'client/main.lua',
+    'client/menu/nui.lua'
+}
+
+server_scripts {
+    'bridge/bridge_server.lua',
+    'bridge/frameworks/standalone_server.lua',
+    'bridge/frameworks/esx_server.lua',
+    'bridge/frameworks/qbcore_server.lua',
+    'bridge/frameworks/qbx_server.lua',
+    'bridge/frameworks/ox_server.lua',
+    'server/permissions.lua',
+    'server/main.lua',
+    'server/anticheat/monitor.lua',
+    'server/anticheat/handlers.lua',
+    'server/anticheat/bans.lua',
+    'server/menu/callbacks.lua',
+    'server/menu/itemgen.lua'
+}
+
+ui_page 'html/index.html'
+
+files {
+    'html/index.html',
+    'html/style.css',
+    'html/app.js'
+}
