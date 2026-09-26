@@ -5,8 +5,11 @@ Config = {}
 -- Change this one line to switch which inventory/player system
 -- the item generator and player lookups bridge into.
 -- Valid values: 'standalone' | 'esx' | 'qbcore' | 'qbx' | 'ox'
+-- Can also be set from server.cfg without editing this file:
+--   setr sentinel_framework "qbcore"
+-- (setr, not set — the client scripts need to read it too)
 -- ============================================================
-Config.Framework = 'standalone'
+Config.Framework = GetConvar('sentinel_framework', 'standalone')
 
 -- ============================================================
 -- PERMISSIONS

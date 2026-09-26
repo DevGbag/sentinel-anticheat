@@ -10,16 +10,34 @@ Bridge.GetItemList = function()
     return list
 end
 
+-- Current qb-core moved item handling out of Player.Functions and into
+-- qb-inventory's exports; older qb-core still has Player.Functions.AddItem.
+local function hasInventoryExports()
+    return GetResourceState('qb-inventory') == 'started'
+end
+
 Bridge.AddItem = function(src, itemName, count)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return false end
-    return Player.Functions.AddItem(itemName, math.max(tonumber(count) or 1, 1)) and true or false
+    count = math.max(tonumber(count) or 1, 1)
+    if hasInventoryExports() then
+        local canAdd, reason = exports['qb-inventory']:CanAddItem(src, itemName, count)
+        if not canAdd then return false, reason or 'rejected' end
+        local ok = exports['qb-inventory']:AddItem(src, itemName, count, false, false, 'sentinel_ac item generator')
+        if ok then TriggerClientEvent('qb-inventory:client:ItemBox', src, QBCore.Shared.Items[itemName], 'add', count) end
+        return ok and true or false
+    end
+    return Player.Functions.AddItem and Player.Functions.AddItem(itemName, count) and true or false
 end
 
 Bridge.RemoveItem = function(src, itemName, count)
     local Player = QBCore.Functions.GetPlayer(src)
     if not Player then return false end
-    return Player.Functions.RemoveItem(itemName, math.max(tonumber(count) or 1, 1)) and true or false
+    count = math.max(tonumber(count) or 1, 1)
+    if hasInventoryExports() then
+        return exports['qb-inventory']:RemoveItem(src, itemName, count, false, 'sentinel_ac') and true or false
+    end
+    return Player.Functions.RemoveItem and Player.Functions.RemoveItem(itemName, count) and true or false
 end
 
 Bridge.AddMoney = function(src, amount, account)

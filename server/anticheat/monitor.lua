@@ -16,6 +16,7 @@ local playerState = {}
 local strikes = {}
 local trustedUntil = {}
 local weaponFlagged = {}
+local wasLoaded = {}
 
 local AC = Config.AntiCheat
 
@@ -94,12 +95,18 @@ local function checkHealth(src, ped, health, last)
 end
 
 local function checkPlayerFlags(src, ped)
-    if AC.godmode.enabled then
+    -- Character select / spawn select screens (qb-multicharacter, qb-spawn,
+    -- spawnmanager) freeze the ped and make it invisible + invincible.
+    -- Frozen in place is not something cheats bother with, so treat it as
+    -- a loading screen rather than godmode/invisibility.
+    local frozen = IsEntityPositionFrozen(ped)
+
+    if AC.godmode.enabled and not frozen then
         strikeCheck(src, 'godmode', GetPlayerInvincible(src), AC.godmode.requiredStrikes,
             'player invincible flag set')
     end
 
-    if AC.invisible.enabled then
+    if AC.invisible.enabled and not frozen then
         strikeCheck(src, 'invisible', not IsEntityVisible(ped), AC.invisible.requiredStrikes,
             'player ped is invisible')
     end
@@ -166,7 +173,17 @@ CreateThread(function()
                 local src = tonumber(strSrc)
                 local ped = GetPlayerPed(src)
 
-                if ped and ped ~= 0 and not IsSentinelBypassed(src) then
+                -- Nothing is checked until the framework says a character is
+                -- loaded (character select moves/hides the ped), and the spawn
+                -- teleport right after loading is trusted.
+                local loaded = Bridge.IsPlayerLoaded(src)
+                if loaded and not wasLoaded[src] then
+                    SentinelMarkTrusted(src, 15)
+                    playerState[src] = nil
+                end
+                wasLoaded[src] = loaded
+
+                if loaded and ped and ped ~= 0 and not IsSentinelBypassed(src) then
                     local coords = GetEntityCoords(ped)
                     local health = GetEntityHealth(ped)
                     local now = GetGameTimer()
@@ -198,6 +215,7 @@ AddEventHandler('playerDropped', function()
     strikes[src] = nil
     trustedUntil[src] = nil
     weaponFlagged[src] = nil
+    wasLoaded[src] = nil
 end)
 
 exports('MarkTrusted', function(src, seconds) SentinelMarkTrusted(tonumber(src), seconds) end)

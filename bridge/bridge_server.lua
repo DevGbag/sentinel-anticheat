@@ -14,7 +14,7 @@ the matching file in bridge/frameworks/ and adjust.
 
 Contract every framework file fulfils:
   Bridge.GetItemList()                  -> { [itemName] = { label = str, weapon = bool }, ... }
-  Bridge.AddItem(src, itemName, count)  -> bool success
+  Bridge.AddItem(src, itemName, count)  -> bool success[, string reason] (reason optional, e.g. 'weight' | 'slots')
   Bridge.RemoveItem(src, itemName, count) -> bool success
   Bridge.AddMoney(src, amount, account) -> bool success
   Bridge.GetPlayerName(src)             -> string

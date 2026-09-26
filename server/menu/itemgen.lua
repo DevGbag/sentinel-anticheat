@@ -25,7 +25,7 @@ RegisterNetEvent('sentinel:server:giveItem', function(targetId, itemName, count)
         end
     end
 
-    local ok = Bridge.AddItem(targetId, itemName, count)
+    local ok, reason = Bridge.AddItem(targetId, itemName, count)
     if ok then
         SentinelAudit(src, 'giveItem', targetId, ('%sx %s'):format(count, itemName))
         local label = items[itemName].label or itemName
@@ -34,6 +34,10 @@ RegisterNetEvent('sentinel:server:giveItem', function(targetId, itemName, count)
             TriggerClientEvent('sentinel:client:notify', targetId, ('You received %sx %s from an admin'):format(count, label), 'success')
         end
     else
-        TriggerClientEvent('sentinel:client:notify', src, ('Failed to give "%s" — bridge rejected it.'):format(itemName), 'error')
+        local why = ({
+            weight = 'their inventory is too heavy to carry that many',
+            slots = 'their inventory has no free slots',
+        })[reason] or ('the %s inventory rejected it'):format(Config.Framework)
+        TriggerClientEvent('sentinel:client:notify', src, ('Failed to give %sx "%s": %s.'):format(count, itemName, why), 'error')
     end
 end)
