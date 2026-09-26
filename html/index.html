@@ -17,9 +17,19 @@
           <button class="tab-btn active" data-tab="players">Players</button>
           <button class="tab-btn" data-tab="items">Item Generator</button>
           <button class="tab-btn" data-tab="logs">Anticheat Log</button>
+          <button class="tab-btn" data-tab="bans">Bans</button>
         </nav>
         <button class="close-btn" data-action="close" title="Close (ESC)">&times;</button>
       </header>
+
+      <div class="stats-bar" id="statsBar">
+        <div class="stat"><span class="stat-value" data-stat="players">–</span><span class="stat-label">Online</span></div>
+        <div class="stat"><span class="stat-value" data-stat="flags">–</span><span class="stat-label">Flags</span></div>
+        <div class="stat"><span class="stat-value" data-stat="blockedEvents">–</span><span class="stat-label">Blocked events</span></div>
+        <div class="stat"><span class="stat-value" data-stat="kicks">–</span><span class="stat-label">AC kicks</span></div>
+        <div class="stat"><span class="stat-value" data-stat="bans">–</span><span class="stat-label">AC bans</span></div>
+        <div class="stat"><span class="stat-value" data-stat="activeBans">–</span><span class="stat-label">Active bans</span></div>
+      </div>
 
       <main class="panel-body">
         <section class="tab-page active" data-page="players">
@@ -34,6 +44,7 @@
                   <th>ID</th>
                   <th>Name</th>
                   <th>Ping</th>
+                  <th>Flags</th>
                   <th class="actions-col">Actions</th>
                 </tr>
               </thead>
@@ -68,11 +79,53 @@
 
         <section class="tab-page" data-page="logs">
           <div class="toolbar">
+            <input type="search" id="logSearch" placeholder="Filter by player or detail..." />
+            <select id="logKind"><option value="">All detections</option></select>
             <button class="btn" data-action="refreshLogs">Refresh</button>
           </div>
           <div class="log-list" id="logList"></div>
         </section>
+
+        <section class="tab-page" data-page="bans">
+          <div class="toolbar">
+            <input type="search" id="banSearch" placeholder="Search by name, ban ID or reason..." />
+            <button class="btn" data-action="refreshBans">Refresh</button>
+          </div>
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Ban ID</th>
+                  <th>Name</th>
+                  <th>Reason</th>
+                  <th>By</th>
+                  <th>Expires</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="bansBody"></tbody>
+            </table>
+          </div>
+        </section>
       </main>
+    </div>
+  </div>
+
+  <div class="modal-backdrop" id="playerModal">
+    <div class="modal">
+      <header class="modal-header">
+        <span id="modalTitle">Player</span>
+        <button class="close-btn" data-action="closeModal" title="Close">&times;</button>
+      </header>
+      <div class="modal-body">
+        <div class="info-grid" id="modalInfo"></div>
+        <div class="toolbar">
+          <button class="btn primary" id="screenshotBtn">Take screenshot</button>
+        </div>
+        <div class="screenshot-wrap" id="screenshotWrap"></div>
+        <h4>Flags this session</h4>
+        <div class="log-list" id="modalFlags"></div>
+      </div>
     </div>
   </div>
 

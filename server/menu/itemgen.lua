@@ -16,8 +16,18 @@ RegisterNetEvent('sentinel:server:giveItem', function(targetId, itemName, count)
         return
     end
 
+    -- the anticheat would flag (by default: ban) the recipient for holding it
+    local hash = GetHashKey(itemName)
+    for _, blocked in ipairs(Config.AntiCheat.weapon.blockedWeaponHashes) do
+        if hash == blocked then
+            TriggerClientEvent('sentinel:client:notify', src, ('"%s" is on the anticheat weapon blocklist (config.lua) — not given.'):format(itemName), 'error')
+            return
+        end
+    end
+
     local ok = Bridge.AddItem(targetId, itemName, count)
     if ok then
+        SentinelAudit(src, 'giveItem', targetId, ('%sx %s'):format(count, itemName))
         local label = items[itemName].label or itemName
         TriggerClientEvent('sentinel:client:notify', src, ('Gave %sx %s to %s'):format(count, label, Bridge.GetPlayerName(targetId)), 'success')
         if targetId ~= src then

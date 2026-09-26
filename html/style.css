@@ -317,3 +317,130 @@ tbody tr:hover {
   text-align: center;
   padding: 24px;
 }
+
+.stats-bar {
+  display: flex;
+  gap: 8px;
+  padding: 10px 18px 0;
+}
+
+.stat {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--panel-alt);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.stat-value {
+  font-size: 18px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+
+.log-entry .action {
+  font-size: 10.5px;
+  font-weight: 600;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-left: 6px;
+}
+
+.log-entry .action.kick,
+.log-entry .action.ban {
+  color: var(--warn);
+}
+
+.flag-count {
+  font-weight: 700;
+  color: var(--text-dim);
+}
+
+.flag-count.hot {
+  color: var(--danger);
+}
+
+.modal-backdrop {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-backdrop.open {
+  display: flex;
+}
+
+.modal {
+  width: 620px;
+  max-width: 90vw;
+  max-height: 84vh;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.6);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  background: var(--panel-alt);
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+.modal-body {
+  padding: 14px 16px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.modal-body h4 {
+  margin: 4px 0 0;
+  font-size: 12px;
+  color: var(--text-dim);
+  font-weight: 600;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: 110px 1fr;
+  gap: 6px 12px;
+  font-size: 12.5px;
+}
+
+.info-grid .k {
+  color: var(--text-dim);
+}
+
+.info-grid .v {
+  word-break: break-all;
+}
+
+.screenshot-wrap img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+}
+
+.screenshot-wrap .empty-state {
+  padding: 8px;
+  text-align: left;
+}

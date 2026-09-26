@@ -5,7 +5,7 @@ lua54 'yes'
 name 'sentinel_ac'
 author 'DevGeorge'
 description 'Standalone anticheat + admin menu + item generator (framework-agnostic bridge)'
-version '1.0.0'
+version '2.0.0'
 
 shared_scripts {
     'config/config.lua'
@@ -19,6 +19,7 @@ client_scripts {
     'bridge/frameworks/qbx_client.lua',
     'bridge/frameworks/ox_client.lua',
     'client/main.lua',
+    'client/anticheat.lua',
     'client/menu/nui.lua'
 }
 
@@ -31,9 +32,15 @@ server_scripts {
     'bridge/frameworks/ox_server.lua',
     'server/permissions.lua',
     'server/main.lua',
-    'server/anticheat/monitor.lua',
+    'server/logging.lua',
     'server/anticheat/handlers.lua',
     'server/anticheat/bans.lua',
+    'server/anticheat/connection.lua',
+    'server/anticheat/monitor.lua',
+    'server/anticheat/gameevents.lua',
+    'server/anticheat/clientchecks.lua',
+    'server/anticheat/chat.lua',
+    'server/anticheat/screenshots.lua',
     'server/menu/callbacks.lua',
     'server/menu/itemgen.lua'
 }

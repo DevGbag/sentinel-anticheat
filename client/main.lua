@@ -33,6 +33,12 @@ function OpenMenu()
     SentinelTriggerCallback('sentinel:getLogs', function(logs)
         SendNUIMessage({ action = 'logs', data = logs })
     end)
+    SentinelTriggerCallback('sentinel:getStats', function(stats)
+        SendNUIMessage({ action = 'stats', data = stats })
+    end)
+    SentinelTriggerCallback('sentinel:getBans', function(bans)
+        SendNUIMessage({ action = 'bans', data = bans })
+    end)
 end
 
 function CloseMenu()

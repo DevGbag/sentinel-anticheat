@@ -17,6 +17,49 @@ RegisterNUICallback('refreshLogs', function(_, cb)
     cb({})
 end)
 
+RegisterNUICallback('refreshBans', function(_, cb)
+    SentinelTriggerCallback('sentinel:getBans', function(bans)
+        SendNUIMessage({ action = 'bans', data = bans })
+    end)
+    SentinelTriggerCallback('sentinel:getStats', function(stats)
+        SendNUIMessage({ action = 'stats', data = stats })
+    end)
+    cb({})
+end)
+
+RegisterNUICallback('refreshStats', function(_, cb)
+    SentinelTriggerCallback('sentinel:getStats', function(stats)
+        SendNUIMessage({ action = 'stats', data = stats })
+    end)
+    cb({})
+end)
+
+RegisterNUICallback('playerInfo', function(data, cb)
+    SentinelTriggerCallback('sentinel:getPlayerInfo', function(info)
+        SendNUIMessage({ action = 'playerInfo', data = info })
+    end, data.id)
+    cb({})
+end)
+
+RegisterNUICallback('unban', function(data, cb)
+    TriggerServerEvent('sentinel:server:unban', data.banId)
+    SetTimeout(500, function()
+        SentinelTriggerCallback('sentinel:getBans', function(bans)
+            SendNUIMessage({ action = 'bans', data = bans })
+        end)
+    end)
+    cb({})
+end)
+
+RegisterNUICallback('screenshot', function(data, cb)
+    TriggerServerEvent('sentinel:server:requestScreenshot', data.id)
+    cb({})
+end)
+
+RegisterNetEvent('sentinel:client:screenshot', function(targetId, dataUri)
+    SendNUIMessage({ action = 'screenshot', id = targetId, data = dataUri })
+end)
+
 RegisterNUICallback('teleportToPlayer', function(data, cb)
     TriggerServerEvent('sentinel:server:teleportToPlayer', data.id)
     cb({})
@@ -79,6 +122,7 @@ local spectating = false
 
 RegisterNetEvent('sentinel:client:spectateStart', function()
     spectating = true
+    SentinelIsSpectating = true
     local myPed = PlayerPedId()
     FreezeEntityPosition(myPed, true)
     SetEntityVisible(myPed, false, false)
@@ -97,6 +141,7 @@ end)
 
 RegisterNetEvent('sentinel:client:spectateStop', function()
     spectating = false
+    SentinelIsSpectating = false
     local myPed = PlayerPedId()
     FreezeEntityPosition(myPed, false)
     SetEntityVisible(myPed, true, false)

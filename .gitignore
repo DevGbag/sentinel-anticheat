@@ -39,3 +39,7 @@ luac.out
 *.x86_64
 *.hex
 
+
+# Sentinel runtime data
+data/bans.json
+data/screenshots/*.jpg
