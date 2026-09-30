@@ -247,6 +247,11 @@ Config.AntiCheat = {
         -- no heartbeat for this long after the first one = our client
         -- script was stopped or blocked
         timeoutSeconds = 60,
+        -- the token rotates on every heartbeat, and each heartbeat carries a
+        -- counter from the client check loop. An executor that suspends our
+        -- checks but keeps the heartbeat alive shows up as this many
+        -- heartbeats in a row with a frozen counter.
+        maxStalledBeats = 4,
     },
 
     -- client stops a resource that is still running server-side
@@ -283,10 +288,119 @@ Config.AntiCheat = {
         intervalMs = 5000,
     },
 
+    -- ========================================================
+    -- Menu-feature detections. Each of these targets something cheat
+    -- menus offer as a toggle. Server-side ones can't be switched off by
+    -- the client; client-side ones are covered by the heartbeat/stall check.
+    -- ========================================================
+
+    -- Noclip / fly. Server: the ped keeps moving while its synced velocity
+    -- is ~0 (position being set directly). Client: own-ped collision
+    -- disabled, or hovering in the air without falling/parachuting.
+    noclip = {
+        enabled = true,
+        minMoveSpeed = 3.0,    -- m/s of position change...
+        maxVelocity = 0.5,     -- ...while the ped's velocity is below this
+        hoverHeight = 3.0,     -- client: meters above ground counted as hovering
+    },
+
+    -- Spectate / freecam. Server: GetPlayerFocusPos (where the player's
+    -- camera streams the world from) far from their ped. Client: the
+    -- rendered camera far from the ped. Scripts with legit far cameras
+    -- (CCTV, drones) should call exports.sentinel_ac:AllowFreeCamera.
+    freecam = {
+        enabled = true,
+        maxFocusDistance = 250.0,  -- server
+        maxCameraDistance = 80.0,  -- client
+        requiredStrikes = 3,
+    },
+
+    -- "Fix vehicle": the driver's vehicle engine/body health jumps back to
+    -- full in one poll. Server-side. Mechanic/repair-kit scripts that fix a
+    -- vehicle with the driver inside should call exports.sentinel_ac:MarkTrusted(src, 3) first.
+    vehicleRepair = {
+        enabled = true,
+        minJump = 150.0, -- health points restored in one poll (max is 1000)
+    },
+
+    -- per-model vehicle speed, client-side (GetVehicleEstimatedMaxSpeed is
+    -- client-only). Raise maxRatio if you run nitro/top-speed tuning scripts.
+    vehicleSpeed = {
+        enabled = true,
+        maxRatio = 1.4,
+    },
+
+    -- own vehicle made undamageable (vehicle godmode), client-side
+    vehicleGodmode = {
+        enabled = true,
+    },
+
+    -- player nametags / ESP drawn with the game's gamer tags. Turn off (or
+    -- raise maxActiveTags) if your server runs an overhead-name/ID script.
+    nametags = {
+        enabled = true,
+        maxActiveTags = 0,
+    },
+
+    -- "show all players on map": a blip on most other players at once.
+    -- Police/EMS GPS scripts blip colleagues, hence the ratio + minimum.
+    playerBlips = {
+        enabled = true,
+        minPlayers = 4,
+        ratio = 0.75,
+    },
+
+    -- "give all weapons": more of the weapons below held at once than any
+    -- real loadout would have
+    weaponCount = {
+        enabled = true,
+        max = 18,
+    },
+
+    -- entity alpha turned down to hide the ped (the other invisibility trick)
+    pedAlpha = {
+        enabled = true,
+        minAlpha = 50,
+    },
+
+    -- Aimbot statistics from weaponDamageEvent: share of hits on players
+    -- that land on the head, over a rolling sample.
+    aimbot = {
+        enabled = true,
+        sampleSize = 30,
+        maxHeadshotRatio = 0.7,
+        headComponents = { 20 },
+    },
+
+    -- Magic bullet / silent kill: damage with a gun while the shooter has
+    -- nothing in their hands. Throwables are ignored (the hand is empty
+    -- after the last one leaves it).
+    magicBullet = {
+        enabled = true,
+        occurrences = 3,
+        windowMs = 30000,
+        ignoreWeapons = {
+            `WEAPON_GRENADE`, `WEAPON_STICKYBOMB`, `WEAPON_MOLOTOV`, `WEAPON_PIPEBOMB`,
+            `WEAPON_PROXMINE`, `WEAPON_SNOWBALL`, `WEAPON_BZGAS`, `WEAPON_SMOKEGRENADE`,
+            `WEAPON_BALL`, `WEAPON_FLARE`,
+        },
+    },
+
+    -- Commands registered by resources the server never started (executor
+    -- menus register their own), plus command names you never want to see.
+    commands = {
+        enabled = true,
+        blacklisted = {
+            -- add command names from menus you've caught on your server
+        },
+        ignoreResources = { '', '_cfx_internal', 'internal' },
+    },
+
     -- action taken once a detection fires
     -- 'log'  = record + alert admins
     -- 'warn' = same as log, and the player is told they were flagged
     -- 'kick' | 'ban'
+    -- 'troll' = troll them first, then Config.Trolls.auto.thenAction
     -- (unauthorized attempts to call admin-only actions ('exploit') are not
     -- listed here — those are always dropped immediately regardless of
     -- this table, see server/permissions.lua)
@@ -327,11 +441,56 @@ Config.AntiCheat = {
         chat = 'warn',
         chatSpam = 'kick',
 
+        checksStalled = 'kick',
+        noclip = 'kick',
+        freecam = 'kick',
+        vehicleRepair = 'kick',
+        vehicleSpeed = 'kick',
+        vehicleGodmode = 'kick',
+        nametags = 'kick',
+        playerBlips = 'warn',
+        weaponCount = 'kick',
+        aimbot = 'kick',
+        magicBullet = 'kick',
+        blacklistedCommand = 'ban',
+
         -- used by exports.sentinel_ac:RateLimit from your own resources
         eventSpam = 'kick',
     },
 
     banDurationHours = 0, -- 0 = permanent
+}
+
+-- ============================================================
+-- TROLLS (server/anticheat/trolls.lua + client/trolls.lua)
+-- Admins can troll a player from the Info panel in the menu, and any
+-- detection can use 'troll' as its punishment above: the cheater is
+-- trolled for a while (see `auto`) before being kicked or banned.
+-- Full troll list: shared/trolls.lua
+-- ============================================================
+Config.Trolls = {
+    enabled = true,
+
+    -- extra ACE required on top of sentinel.admin to use trolls, e.g.
+    --   add_ace group.superadmin sentinel.troll allow
+    -- nil = every admin can troll
+    acePermission = nil,
+
+    defaultDurationSeconds = 30,
+    maxDurationSeconds = 600,
+
+    -- troll names to turn off entirely, e.g. { 'attackers', 'fakeCrash' }
+    disabled = {},
+
+    fakeCrashDelaySeconds = 8, -- how long their game stays frozen before the disconnect
+    fakeCrashMessage = 'Game crashed: ERR_GFX_STATE (0xE5A8B8C1)',
+
+    -- used when a detection's punishment is 'troll'
+    auto = {
+        trolls = { 'harmless', 'noShoot', 'drunk' },
+        durationSeconds = 60,
+        thenAction = 'ban', -- 'kick' | 'ban' | 'none' once the trolls wear off
+    },
 }
 
 -- ============================================================

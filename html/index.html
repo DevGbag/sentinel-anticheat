@@ -8,17 +8,24 @@
 <body>
   <div id="app">
     <div class="panel">
-      <header class="panel-header">
-        <div class="brand">
-          <span class="brand-dot"></span>
-          <span>Sentinel Admin</span>
-        </div>
+      <aside class="sidebar">
+        <div class="brand" id="brand"></div>
         <nav class="tabs">
+          <span class="nav-label">Management</span>
           <button class="tab-btn active" data-tab="players">Players</button>
           <button class="tab-btn" data-tab="items">Item Generator</button>
-          <button class="tab-btn" data-tab="logs">Anticheat Log</button>
+          <span class="nav-label">Protection</span>
+          <button class="tab-btn" data-tab="logs">Detections</button>
           <button class="tab-btn" data-tab="bans">Bans</button>
         </nav>
+        <div class="sidebar-foot">
+          <span class="status-dot"></span> Protection active
+        </div>
+      </aside>
+
+      <div class="main">
+      <header class="panel-header">
+        <span class="page-title" id="pageTitle">Players</span>
         <button class="close-btn" data-action="close" title="Close (ESC)">&times;</button>
       </header>
 
@@ -108,6 +115,7 @@
           </div>
         </section>
       </main>
+      </div>
     </div>
   </div>
 
@@ -123,12 +131,25 @@
           <button class="btn primary" id="screenshotBtn">Take screenshot</button>
         </div>
         <div class="screenshot-wrap" id="screenshotWrap"></div>
+        <div class="troll-section" id="trollSection">
+          <div class="section-head">
+            <h4>Trolls</h4>
+            <div class="troll-controls">
+              <label for="trollDuration">Duration (s)</label>
+              <input type="number" id="trollDuration" value="30" min="1" />
+              <button class="btn small danger" id="trollStopBtn">Stop all</button>
+            </div>
+          </div>
+          <div class="troll-active" id="trollActive"></div>
+          <div class="troll-grid" id="trollGrid"></div>
+        </div>
         <h4>Flags this session</h4>
         <div class="log-list" id="modalFlags"></div>
       </div>
     </div>
   </div>
 
+  <script src="branding.js"></script>
   <script src="app.js"></script>
 </body>
 </html>

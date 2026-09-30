@@ -15,6 +15,8 @@ local AC = Config.AntiCheat
 local heartbeatToken = {} -- src -> token
 local lastHeartbeat = {}  -- src -> GetGameTimer()
 local joinedAt = {}       -- src -> GetGameTimer()
+local lastChecks = {}     -- src -> client check-loop counter at the last heartbeat
+local stalledBeats = {}   -- src -> heartbeats in a row with that counter frozen
 local recentServerStops = {} -- resourceName -> GetGameTimer() when the server stopped it
 
 local READY_GRACE_MS = 180000 -- time a client gets to load in and start our script
@@ -38,6 +40,8 @@ AddEventHandler('playerDropped', function()
     heartbeatToken[src] = nil
     lastHeartbeat[src] = nil
     joinedAt[src] = nil
+    lastChecks[src] = nil
+    stalledBeats[src] = nil
 end)
 
 AddEventHandler('onResourceStop', function(name)
@@ -59,14 +63,34 @@ RegisterNetEvent('sentinel:server:clientReady', function()
     TriggerClientEvent('sentinel:client:init', src, heartbeatToken[src])
 end)
 
-RegisterNetEvent('sentinel:server:heartbeat', function(token)
+-- The token rotates on every accepted heartbeat, so a captured token can't
+-- be replayed by a fake heartbeat loop once the real one is gone.
+-- `checksRan` is a counter from the client check loop: a heartbeat that
+-- keeps arriving while that counter is frozen means the checks were
+-- suspended (executors do this to keep the heartbeat but blind the AC).
+RegisterNetEvent('sentinel:server:heartbeat', function(token, checksRan)
     local src = source
     if not heartbeatToken[src] then return end
     if token ~= heartbeatToken[src] then
-        SentinelFlag(src, 'heartbeat', 'heartbeat sent with the wrong session token (forged)')
+        SentinelFlag(src, 'heartbeat', 'heartbeat sent with the wrong session token (forged or replayed)')
         return
     end
     lastHeartbeat[src] = GetGameTimer()
+    heartbeatToken[src] = newToken()
+    TriggerClientEvent('sentinel:client:heartbeatAck', src, heartbeatToken[src])
+
+    if not AC.enabled or not AC.heartbeat.enabled then return end
+    checksRan = tonumber(checksRan)
+    if checksRan and lastChecks[src] and checksRan > lastChecks[src] then
+        stalledBeats[src] = 0
+    else
+        stalledBeats[src] = (stalledBeats[src] or 0) + 1
+        if stalledBeats[src] >= AC.heartbeat.maxStalledBeats then
+            SentinelFlag(src, 'checksStalled', ('anticheat checks stopped running for %d heartbeats while the heartbeat continued (suspended by an executor)'):format(stalledBeats[src]))
+            stalledBeats[src] = 0
+        end
+    end
+    lastChecks[src] = checksRan or lastChecks[src]
 end)
 
 CreateThread(function()
@@ -115,17 +139,45 @@ end)
 local ignoreInjection = {}
 for _, name in ipairs(AC.resourceInjection.ignore) do ignoreInjection[name] = true end
 
-RegisterNetEvent('sentinel:server:resourceList', function(list)
+local ignoreCommandOwners = {}
+for _, name in ipairs(AC.commands.ignoreResources) do ignoreCommandOwners[name] = true end
+
+local function notRunningOnServer(name)
+    local state = GetResourceState(name)
+    return state ~= 'started' and state ~= 'starting' and not stoppedByServerRecently(name), state
+end
+
+RegisterNetEvent('sentinel:server:resourceList', function(list, commandOwners, blacklistedCommand)
     local src = source
-    if not AC.enabled or not AC.resourceInjection.enabled or type(list) ~= 'table' then return end
+    if not AC.enabled or type(list) ~= 'table' then return end
     if SentinelRateLimit(src, 'resourceList', 3, 60000) then return end
 
-    for _, name in ipairs(list) do
-        if type(name) == 'string' and not ignoreInjection[name] then
-            local state = GetResourceState(name)
-            if state ~= 'started' and state ~= 'starting' and not stoppedByServerRecently(name) then
-                SentinelFlag(src, 'injection', ('running resource "%s" that the server has not started (server state: %s)'):format(name:sub(1, 64), state))
-                return
+    if AC.resourceInjection.enabled then
+        for _, name in ipairs(list) do
+            if type(name) == 'string' and not ignoreInjection[name] then
+                local missing, state = notRunningOnServer(name)
+                if missing then
+                    SentinelFlag(src, 'injection', ('running resource "%s" that the server has not started (server state: %s)'):format(name:sub(1, 64), state))
+                    return
+                end
+            end
+        end
+    end
+
+    if AC.commands.enabled then
+        if type(blacklistedCommand) == 'string' then
+            SentinelFlag(src, 'blacklistedCommand', ('blacklisted command "/%s" is registered'):format(blacklistedCommand:sub(1, 64)))
+            return
+        end
+        if type(commandOwners) == 'table' then
+            for _, name in ipairs(commandOwners) do
+                if type(name) == 'string' and not ignoreCommandOwners[name] and not ignoreInjection[name] then
+                    local missing, state = notRunningOnServer(name)
+                    if missing then
+                        SentinelFlag(src, 'injection', ('commands registered by resource "%s" that the server has not started (server state: %s)'):format(name:sub(1, 64), state))
+                        return
+                    end
+                end
             end
         end
     end
@@ -150,6 +202,15 @@ local REPORTABLE = {
     visionMods = true,
     pedProofs = true,
     weapon = true,
+    godmode = true,
+    invisible = true,
+    weaponCount = true,
+    nametags = true,
+    playerBlips = true,
+    freecam = true,
+    noclip = true,
+    vehicleSpeed = true,
+    vehicleGodmode = true,
 }
 
 RegisterNetEvent('sentinel:server:clientReport', function(kind, detail)

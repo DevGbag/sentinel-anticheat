@@ -8,7 +8,8 @@ description 'Standalone anticheat + admin menu + item generator (framework-agnos
 version '2.0.0'
 
 shared_scripts {
-    'config/config.lua'
+    'config/config.lua',
+    'shared/trolls.lua'
 }
 
 client_scripts {
@@ -20,6 +21,7 @@ client_scripts {
     'bridge/frameworks/ox_client.lua',
     'client/main.lua',
     'client/anticheat.lua',
+    'client/trolls.lua',
     'client/menu/nui.lua'
 }
 
@@ -33,6 +35,7 @@ server_scripts {
     'server/permissions.lua',
     'server/main.lua',
     'server/logging.lua',
+    'server/branding.lua',
     'server/anticheat/handlers.lua',
     'server/anticheat/bans.lua',
     'server/anticheat/connection.lua',
@@ -40,7 +43,9 @@ server_scripts {
     'server/anticheat/gameevents.lua',
     'server/anticheat/clientchecks.lua',
     'server/anticheat/chat.lua',
+    'server/anticheat/convars.lua',
     'server/anticheat/screenshots.lua',
+    'server/anticheat/trolls.lua',
     'server/menu/callbacks.lua',
     'server/menu/itemgen.lua'
 }
@@ -50,5 +55,6 @@ ui_page 'html/index.html'
 files {
     'html/index.html',
     'html/style.css',
-    'html/app.js'
+    'html/app.js',
+    'html/branding.js'
 }

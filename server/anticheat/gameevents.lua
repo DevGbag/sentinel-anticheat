@@ -32,6 +32,17 @@ local function block(src, kind, detail)
     end
 end
 
+-- `harmless` troll: the player's combat events are silently dropped, so
+-- they keep shooting but nobody else ever sees or takes the damage.
+-- Checked before the bypass check so admins can test it on themselves.
+local function harmless(sender)
+    if SentinelTrollActive(sender, 'harmless') then
+        CancelEvent()
+        return true
+    end
+    return false
+end
+
 -- ============================================================
 -- Entity spawns
 -- ============================================================
@@ -70,6 +81,7 @@ end)
 -- ============================================================
 AddEventHandler('explosionEvent', function(sender, ev)
     sender = tonumber(sender)
+    if harmless(sender) then return end
     local cfg = AC.explosions
     if not AC.enabled or not cfg.enabled or IsSentinelBypassed(sender) then return end
 
@@ -89,6 +101,7 @@ end)
 -- ============================================================
 AddEventHandler('ptFxEvent', function(sender, data)
     sender = tonumber(sender)
+    if harmless(sender) then return end
     local cfg = AC.particles
     if not AC.enabled or not cfg.enabled or IsSentinelBypassed(sender) then return end
 
@@ -104,6 +117,7 @@ end)
 -- ============================================================
 AddEventHandler('startProjectileEvent', function(sender, data)
     sender = tonumber(sender)
+    if harmless(sender) then return end
     local cfg = AC.projectiles
     if not AC.enabled or not cfg.enabled or IsSentinelBypassed(sender) then return end
 
@@ -119,6 +133,7 @@ end)
 -- ============================================================
 AddEventHandler('fireEvent', function(sender)
     sender = tonumber(sender)
+    if harmless(sender) then return end
     local cfg = AC.fires
     if not AC.enabled or not cfg.enabled or IsSentinelBypassed(sender) then return end
 
@@ -130,8 +145,49 @@ end)
 -- ============================================================
 -- Weapon damage (damage modifiers, blacklisted weapons, "kill all", long-range hits)
 -- ============================================================
+local UNARMED = `WEAPON_UNARMED`
+local headComponents = toSet(AC.aimbot.headComponents)
+local magicBulletIgnore = toSet(AC.magicBullet.ignoreWeapons)
+local hitStats = {} -- src -> { hits, heads } over the current aimbot sample
+
+-- Share of player hits that land on the head, evaluated every
+-- `sampleSize` hits. Good players sit well under 50%; aimbots lock the head.
+local function checkHeadshots(sender, component)
+    local cfg = AC.aimbot
+    if not cfg.enabled or component == nil then return end
+
+    local s = hitStats[sender] or { hits = 0, heads = 0 }
+    hitStats[sender] = s
+    s.hits = s.hits + 1
+    if headComponents[component] then s.heads = s.heads + 1 end
+
+    if s.hits >= cfg.sampleSize then
+        local ratio = s.heads / s.hits
+        if ratio > cfg.maxHeadshotRatio then
+            SentinelFlag(sender, 'aimbot', ('%d of the last %d hits on players were headshots (%.0f%%)'):format(s.heads, s.hits, ratio * 100))
+        end
+        hitStats[sender] = nil
+    end
+end
+
+-- Damage from a gun while the shooter's hands are empty and they're not in
+-- a vehicle: the hit was created without actually firing (silent kill /
+-- magic bullet menus). GetSelectedPedWeapon can briefly lag behind the
+-- client, so it takes several occurrences in a window.
+local function checkMagicBullet(sender, shooterPed, weapon)
+    local cfg = AC.magicBullet
+    if not cfg.enabled or magicBulletIgnore[weapon] then return end
+    if GetVehiclePedIsIn(shooterPed, false) ~= 0 then return end
+    if GetSelectedPedWeapon(shooterPed) ~= UNARMED then return end
+
+    if SentinelRateLimit(sender, 'magicBullet', cfg.occurrences - 1, cfg.windowMs) then
+        SentinelFlag(sender, 'magicBullet', ('damaged players with weapon %s while holding nothing, %d times in %ds'):format(weapon, cfg.occurrences, cfg.windowMs // 1000))
+    end
+end
+
 AddEventHandler('weaponDamageEvent', function(sender, data)
     sender = tonumber(sender)
+    if harmless(sender) then return end
     local cfg = AC.weaponDamage
     if not AC.enabled or not cfg.enabled or IsSentinelBypassed(sender) then return end
 
@@ -159,7 +215,16 @@ AddEventHandler('weaponDamageEvent', function(sender, data)
         if data.willKill and SentinelRateLimit(sender, 'kills', cfg.maxKillsPerWindow, cfg.killWindowMs) then
             SentinelFlag(sender, 'killSpam', ('killed more than %d players in %ds'):format(cfg.maxKillsPerWindow, cfg.killWindowMs // 1000))
         end
+
+        if not exemptDamageWeapons[weapon] and weapon ~= UNARMED then
+            checkMagicBullet(sender, shooterPed, weapon)
+            checkHeadshots(sender, data.hitComponent)
+        end
     end
+end)
+
+AddEventHandler('playerDropped', function()
+    hitStats[source] = nil
 end)
 
 -- ============================================================

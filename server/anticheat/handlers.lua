@@ -123,20 +123,28 @@ function SentinelFlag(src, kind, detail)
         SentinelScreenshotToFile(src, kind)
     end
 
+    local function remove(how)
+        if not GetPlayerName(src) then return end
+        if how == 'kick' then
+            stats.kicks = stats.kicks + 1
+            DropPlayer(src, ('Removed by Sentinel Anticheat: %s'):format(kind))
+        elseif how == 'ban' then
+            stats.bans = stats.bans + 1
+            SentinelBanPlayer(src, ('Anticheat: %s (%s)'):format(kind, detail), Config.AntiCheat.banDurationHours, 'SYSTEM')
+        end
+    end
+
     if action == 'kick' or action == 'ban' then
         punished[src] = true
         -- short delay so the screenshot (if any) can land before the drop
         local delay = (Config.Screenshots.enabled and Config.Screenshots.onDetection) and 1500 or 0
-        SetTimeout(delay, function()
-            if not GetPlayerName(src) then return end
-            if action == 'kick' then
-                stats.kicks = stats.kicks + 1
-                DropPlayer(src, ('Removed by Sentinel Anticheat: %s'):format(kind))
-            else
-                stats.bans = stats.bans + 1
-                SentinelBanPlayer(src, ('Anticheat: %s (%s)'):format(kind, detail), Config.AntiCheat.banDurationHours, 'SYSTEM')
-            end
-        end)
+        SetTimeout(delay, function() remove(action) end)
+    elseif action == 'troll' then
+        -- already sentenced: further flags during the troll would only re-troll
+        -- or cut it short with an immediate kick
+        local thenAction = Config.Trolls.auto.thenAction
+        if thenAction == 'kick' or thenAction == 'ban' then punished[src] = true end
+        SentinelAutoTroll(src, function() remove(thenAction) end)
     elseif action == 'warn' then
         TriggerClientEvent('sentinel:client:notify', src, 'Sentinel Anticheat: suspicious activity detected. This has been logged for staff review.', 'error')
     end

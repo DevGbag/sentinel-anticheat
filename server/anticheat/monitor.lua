@@ -17,6 +17,8 @@ local strikes = {}
 local trustedUntil = {}
 local weaponFlagged = {}
 local wasLoaded = {}
+local vehicleHealth = {}   -- src -> { veh, engine, body } while driving
+local freeCameraUntil = {} -- src -> GetGameTimer() until which far cameras are allowed
 
 local AC = Config.AntiCheat
 
@@ -66,6 +68,16 @@ local function checkMovement(src, ped, coords, now, last)
     if AC.teleport.enabled then
         strikeCheck(src, 'teleport', dist > AC.teleport.maxDistancePerPoll, nil,
             ('moved %.1fm in %.1fs'):format(dist, dt))
+    end
+
+    -- Noclip moves the ped by setting its position every frame, so it
+    -- travels while its synced velocity stays at ~0. Attached peds
+    -- (carried, escorted, cuffed) move the same way legitimately.
+    if AC.noclip.enabled and GetVehiclePedIsIn(ped, false) == 0 and GetEntityAttachedTo(ped) == 0 then
+        local moveSpeed = dist / dt
+        local velocity = #GetEntityVelocity(ped)
+        strikeCheck(src, 'noclip', moveSpeed > AC.noclip.minMoveSpeed and velocity < AC.noclip.maxVelocity, nil,
+            ('moving %.1fm/s with a velocity of %.2fm/s (position set directly)'):format(moveSpeed, velocity))
     end
 
     if AC.speed.enabled then
@@ -140,6 +152,48 @@ local function checkPlayerFlags(src, ped)
     end
 end
 
+-- "Fix vehicle": engine or body health jumping back to (nearly) full in
+-- one poll while this player is driving. Tracked per vehicle entity, so
+-- swapping cars or pulling a fresh one out of a garage resets the baseline.
+local function checkVehicleRepair(src, ped, trusted)
+    local cfg = AC.vehicleRepair
+    if not cfg.enabled then return end
+
+    local veh = GetVehiclePedIsIn(ped, false)
+    if not veh or veh == 0 or GetPedInVehicleSeat(veh, -1) ~= ped then
+        vehicleHealth[src] = nil
+        return
+    end
+
+    local engine, body = GetVehicleEngineHealth(veh), GetVehicleBodyHealth(veh)
+    local prev = vehicleHealth[src]
+    if prev and prev.veh == veh and not trusted then
+        local engineFix = engine - prev.engine >= cfg.minJump and engine >= 950.0
+        local bodyFix = body - prev.body >= cfg.minJump and body >= 950.0
+        if engineFix or bodyFix then
+            SentinelFlag(src, 'vehicleRepair', ('vehicle repaired instantly (engine %.0f -> %.0f, body %.0f -> %.0f)'):format(prev.engine, engine, prev.body, body))
+        end
+    end
+    vehicleHealth[src] = { veh = veh, engine = engine, body = body }
+end
+
+-- Spectate / freecam: the focus position is where the player's game is
+-- streaming the world around (their camera), reported for OneSync culling.
+local function checkFocus(src, coords)
+    local cfg = AC.freecam
+    if not cfg.enabled or not GetPlayerFocusPos then return end
+    if freeCameraUntil[src] and GetGameTimer() < freeCameraUntil[src] then
+        resetStrike(src, 'freecam')
+        return
+    end
+
+    local focus = GetPlayerFocusPos(src)
+    if not focus or (focus.x == 0.0 and focus.y == 0.0) then return end
+    local dist = #(focus - coords)
+    strikeCheck(src, 'freecam', dist > cfg.maxFocusDistance, cfg.requiredStrikes,
+        ('camera focus %.0fm away from own ped (spectating / freecam)'):format(dist))
+end
+
 local function checkWeapon(src, ped)
     if not AC.weapon.enabled or #AC.weapon.blockedWeaponHashes == 0 then return end
 
@@ -198,7 +252,10 @@ CreateThread(function()
                     -- dead/respawning players have legit weird state (ragdoll, respawn invincibility)
                     if not trusted and health > 0 then
                         checkPlayerFlags(src, ped)
+                        checkFocus(src, coords)
                     end
+
+                    checkVehicleRepair(src, ped, trusted)
 
                     checkWeapon(src, ped)
 
@@ -216,6 +273,16 @@ AddEventHandler('playerDropped', function()
     trustedUntil[src] = nil
     weaponFlagged[src] = nil
     wasLoaded[src] = nil
+    vehicleHealth[src] = nil
+    freeCameraUntil[src] = nil
 end)
 
 exports('MarkTrusted', function(src, seconds) SentinelMarkTrusted(tonumber(src), seconds) end)
+
+-- For server-driven cameras far from the ped (CCTV, drones, cinematics):
+--   exports.sentinel_ac:AllowFreeCamera(src, 60)   -- seconds, 0 to revoke
+exports('AllowFreeCamera', function(src, seconds)
+    src = tonumber(src)
+    seconds = tonumber(seconds) or 30
+    freeCameraUntil[src] = seconds > 0 and (GetGameTimer() + seconds * 1000) or nil
+end)

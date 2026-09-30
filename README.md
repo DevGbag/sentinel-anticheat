@@ -1,3 +1,5 @@
+<p align="center"><img src="branding/logo.png" width="260" alt="Sentinel Anticheat"></p>
+
 # sentinel_ac
 
 Free, standalone FiveM anticheat with the feature set of the paid ones:
@@ -96,6 +98,42 @@ players, and **cancels** abusive ones so nobody else ever sees them:
 - **Full weapon inventory scan** for blocked weapons (and removes them)
 - **Spectator mode, thermal/night vision, all-damage-proofs** on own ped
 
+### Menu-feature detections
+Targets the individual toggles cheat menus offer:
+
+| Menu feature | Detected by | Side |
+|---|---|---|
+| Noclip / fly | ped moves while its synced velocity is ~0; own collision off; hovering without falling | server + client |
+| Spectate / freecam | player's camera focus far from their ped (`GetPlayerFocusPos`); rendered camera far from ped | server + client |
+| Fix vehicle | driver's engine/body health jumps to full in one poll | server |
+| Vehicle speed hack | speed above the model's own rated top speed (per model) | client |
+| Vehicle godmode | own vehicle set undamageable | client |
+| Godmode (alt method) | `SetEntityCanBeDamaged(false)` on own ped | client |
+| Invisibility (alpha) | own ped alpha turned down | client |
+| Nametags / ESP | game gamer tags active | client |
+| Player blips on map | a blip on most other players at once | client |
+| Give all weapons | holding more weapons than any real loadout | client |
+| Aimbot | headshot ratio over a rolling sample of hits on players | server |
+| Magic bullet / silent kill | gun damage while the shooter's hands are empty | server |
+| Executor commands | commands registered by a resource the server never started; blacklisted command names | client → server |
+| Suspended anticheat | heartbeat continues but the check loop counter froze | server |
+
+The heartbeat token now rotates every beat, so a captured token can't be
+replayed after the real heartbeat stops.
+
+Scripts with legitimate far cameras (CCTV, drones) call
+`exports.sentinel_ac:AllowFreeCamera(src, seconds)` on the server and
+`exports.sentinel_ac:AllowFreeCamera(true/false)` on the client. Repair
+scripts that fix a car with the driver inside call
+`exports.sentinel_ac:MarkTrusted(src, 3)` first.
+
+### Server hardening audit (`server/anticheat/convars.lua`)
+On startup the console lists server.cfg convars that shut cheat tools
+down at the engine level and aren't set yet (`sv_scriptHookAllowed`,
+`sv_pureLevel`, `sv_entityLockdown`, `sv_filterRequestControl`, networked
+sounds/phone explosions). Re-run with `sentinel_audit` in the console.
+These block more tools than any detection can — apply them.
+
 ### Connection guard (`server/anticheat/connection.lua`)
 - Ban enforcement on **identifiers and hardware tokens** — a banned
   player on a fresh Rockstar/Steam/Discord account is still banned, and
@@ -124,6 +162,24 @@ Stats bar (online, flags, blocked events, AC kicks/bans, active bans),
 (identifiers, HW token count, health/armour, session flags, **live
 screenshot**), **Item Generator**, **Anticheat Log** with search and
 detection-type filter, and **Bans** with search and unban.
+
+### Trolls (`server/anticheat/trolls.lua`, `client/trolls.lua`)
+Open a player's **Troll** / **Info** panel in the menu and pick an effect
+and a duration: **Harmless** (their damage, explosions and projectiles are
+silently cancelled server-side), jam weapons, launch, fire, ragdoll,
+drunk, blind, lock controls, slippery car, mountain lions, and a
+**fake crash** that freezes their game and then disconnects them. Every
+troll is written to the admin audit log.
+
+Set any detection's punishment to `'troll'` and the cheater is trolled
+automatically with `Config.Trolls.auto.trolls` for
+`auto.durationSeconds`, then kicked or banned (`auto.thenAction`).
+Restrict trolls to some admins with `Config.Trolls.acePermission`, or turn
+individual ones off with `Config.Trolls.disabled`. From other resources:
+`exports.sentinel_ac:Troll(src, 'drunk', 30)` / `StopTrolls(src)`.
+
+Everything except Harmless runs on the target's client, so a cheat that
+blocks our client events won't see it. Harmless can't be blocked.
 
 ### Punishments
 Per detection in `Config.AntiCheat.punishment`: `log`, `warn` (log +
@@ -167,6 +223,13 @@ add one, otherwise `log`.
   creators (invisible), nitro (power boost), police cuff scripts (clear
   tasks). Each has its own toggle/threshold in config — tune before
   enabling bans.
+- *External (DMA / overlay) cheats are invisible to any resource.* ESP
+  drawn by an external overlay, or an aimbot reading memory from a second
+  PC, never touches the game's scripting layer. Only their effects can be
+  caught: the aimbot headshot ratio, impossible hits, and so on.
+- *New heuristics need tuning*: overhead-ID scripts trip `nametags`,
+  police GPS trips `playerBlips`, CCTV/drone scripts trip `freecam`, and
+  nitro trips `vehicleSpeed`. Run them on `log` first.
 - *VPN blocking uses ip-api.com's free tier* (45 lookups/minute, cached
   per IP). It fails open if the lookup fails.
 - Framework bridge exports (`bridge/frameworks/*_server.lua`) are written

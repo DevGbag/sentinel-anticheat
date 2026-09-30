@@ -100,6 +100,26 @@ RegisterNUICallback('giveItem', function(data, cb)
     cb({})
 end)
 
+local function refreshPlayerInfo(id)
+    SetTimeout(300, function()
+        SentinelTriggerCallback('sentinel:getPlayerInfo', function(info)
+            SendNUIMessage({ action = 'playerInfo', data = info })
+        end, id)
+    end)
+end
+
+RegisterNUICallback('troll', function(data, cb)
+    TriggerServerEvent('sentinel:server:troll', data.id, data.name, data.seconds)
+    refreshPlayerInfo(data.id)
+    cb({})
+end)
+
+RegisterNUICallback('trollStop', function(data, cb)
+    TriggerServerEvent('sentinel:server:trollStop', data.id)
+    refreshPlayerInfo(data.id)
+    cb({})
+end)
+
 RegisterNUICallback('startSpectate', function(data, cb)
     TriggerServerEvent('sentinel:server:startSpectate', data.id)
     cb({})

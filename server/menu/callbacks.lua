@@ -69,6 +69,7 @@ SentinelRegisterCallback('sentinel:getPlayerInfo', function(src, targetId)
         armour = ped ~= 0 and GetPedArmour(ped) or 0,
         bypassed = IsSentinelBypassed(targetId),
         flags = flags,
+        trolls = SentinelActiveTrolls(targetId),
     }
 end)
 

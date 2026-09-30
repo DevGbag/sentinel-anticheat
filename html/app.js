@@ -18,6 +18,7 @@
     spectatingId: null,
     bans: [],
     modalPlayerId: null,
+    trolls: [],
   };
 
   const playersBody = document.getElementById('playersBody');
@@ -36,6 +37,10 @@
   const modalInfo = document.getElementById('modalInfo');
   const modalFlags = document.getElementById('modalFlags');
   const screenshotWrap = document.getElementById('screenshotWrap');
+  const trollSection = document.getElementById('trollSection');
+  const trollGrid = document.getElementById('trollGrid');
+  const trollActive = document.getElementById('trollActive');
+  const trollDuration = document.getElementById('trollDuration');
 
   function closeMenu() {
     document.body.classList.remove('visible');
@@ -54,6 +59,7 @@
       document.querySelectorAll('.tab-btn').forEach((b) => b.classList.remove('active'));
       document.querySelectorAll('.tab-page').forEach((p) => p.classList.remove('active'));
       btn.classList.add('active');
+      document.getElementById('pageTitle').textContent = btn.textContent;
       document.querySelector(`.tab-page[data-page="${btn.dataset.tab}"]`).classList.add('active');
     });
   });
@@ -95,6 +101,7 @@
               <button class="btn small" data-act="bring" data-id="${p.id}">Bring</button>
               <button class="btn small" data-act="spectate" data-id="${p.id}">${isSpectating ? 'Stop Spec' : 'Spectate'}</button>
               <button class="btn small" data-act="heal" data-id="${p.id}">Heal</button>
+              <button class="btn small troll" data-act="troll" data-id="${p.id}">Troll</button>
               <button class="btn small" data-act="freeze" data-id="${p.id}">${isFrozen ? 'Unfreeze' : 'Freeze'}</button>
               <button class="btn small danger" data-act="kill" data-id="${p.id}">Kill</button>
               <button class="btn small danger" data-act="kick" data-id="${p.id}">Kick</button>
@@ -198,6 +205,7 @@
     modalTitle.textContent = `Player ${id}`;
     modalInfo.innerHTML = '<div class="k">Loading…</div>';
     modalFlags.innerHTML = '';
+    trollActive.innerHTML = '';
     screenshotWrap.innerHTML = '';
     playerModal.classList.add('open');
     fetchNui('playerInfo', { id });
@@ -228,10 +236,46 @@
       .map(([k, v]) => `<div class="k">${k}</div><div class="v">${escapeHtml(v)}</div>`)
       .concat(`<div class="k">Identifiers</div><div class="v">${(info.identifiers || []).map(escapeHtml).join('<br>')}</div>`)
       .join('');
+    const active = Object.entries(info.trolls || {});
+    trollActive.innerHTML = active.length
+      ? active.map(([name, secs]) => `<span class="troll-tag">${escapeHtml(trollLabel(name))} · ${secs}s</span>`).join('')
+      : '';
     modalFlags.innerHTML = (info.flags || []).length
       ? info.flags.map(logEntryHtml).join('')
       : '<div class="empty-state">No flags this session.</div>';
   }
+
+  function trollLabel(name) {
+    const def = state.trolls.find((t) => t.name === name);
+    return def ? def.label : name;
+  }
+
+  function renderTrolls() {
+    trollSection.style.display = state.trolls.length ? '' : 'none';
+    trollGrid.innerHTML = state.trolls
+      .map((t) => `
+        <button class="troll-btn" data-troll="${escapeHtml(t.name)}" title="${escapeHtml(t.desc)}">
+          <span class="troll-name">${escapeHtml(t.label)}</span>
+          <span class="troll-desc">${escapeHtml(t.desc)}</span>
+        </button>`)
+      .join('');
+  }
+
+  trollGrid.addEventListener('click', (e) => {
+    const btn = e.target.closest('button[data-troll]');
+    if (!btn || state.modalPlayerId === null) return;
+    const name = btn.dataset.troll;
+    if (name === 'fakeCrash' && !confirm('Fake crash disconnects this player. Continue?')) return;
+    fetchNui('troll', {
+      id: state.modalPlayerId,
+      name,
+      seconds: parseInt(trollDuration.value, 10) || 30,
+    });
+  });
+
+  document.getElementById('trollStopBtn').addEventListener('click', () => {
+    if (state.modalPlayerId !== null) fetchNui('trollStop', { id: state.modalPlayerId });
+  });
 
   function escapeHtml(str) {
     return String(str == null ? '' : str).replace(/[&<>"']/g, (c) => ({
@@ -275,6 +319,7 @@
 
     switch (act) {
       case 'info':
+      case 'troll':
         openModal(id);
         break;
       case 'goto':
@@ -356,6 +401,21 @@
       case 'bans':
         state.bans = data || [];
         renderBans();
+        break;
+      case 'build': {
+        const existing = document.querySelector('.unofficial-build');
+        if (data && data.official === false && !existing) {
+          const note = document.createElement('div');
+          note.className = 'unofficial-build';
+          note.textContent = 'Unofficial build: Sentinel branding has been modified.';
+          document.querySelector('.sidebar-foot').before(note);
+        }
+        break;
+      }
+      case 'trolls':
+        state.trolls = data || [];
+        if (event.data.defaultDuration) trollDuration.value = event.data.defaultDuration;
+        renderTrolls();
         break;
       case 'playerInfo':
         renderPlayerInfo(data);

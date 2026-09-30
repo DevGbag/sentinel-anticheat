@@ -39,6 +39,12 @@ function OpenMenu()
     SentinelTriggerCallback('sentinel:getBans', function(bans)
         SendNUIMessage({ action = 'bans', data = bans })
     end)
+    SentinelTriggerCallback('sentinel:getBuildInfo', function(build)
+        SendNUIMessage({ action = 'build', data = build })
+    end)
+    SentinelTriggerCallback('sentinel:getTrolls', function(trolls)
+        SendNUIMessage({ action = 'trolls', data = trolls, defaultDuration = Config.Trolls.defaultDurationSeconds })
+    end)
 end
 
 function CloseMenu()
